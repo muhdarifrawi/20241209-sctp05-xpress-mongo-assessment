@@ -39,7 +39,7 @@ async function main(){
         }
     })
 
-    app.get("/orders/:id", async (req,res){
+    app.get("/orders/:id", async (req,res) => {
         try {
             const id = req.params.id;
             console.log(`Currently in ${id}`);
