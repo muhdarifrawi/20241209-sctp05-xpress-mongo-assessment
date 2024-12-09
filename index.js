@@ -206,8 +206,34 @@ async function main() {
             }
 
             console.log("EDTEID >>> ", result);
-            res.status(201).json({
-                message: `Order Id ${orderId} Edited`
+            res.status(200).json({
+                message: `Order ID ${orderId} Edited`
+            });
+
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({
+                error: "Internal Server Error"
+            });
+        }
+    })
+
+    app.delete("/orders/:id", async (req,res) => {
+        try {
+            const orderId = req.params.id;
+
+            const result = await db.collection("orders").deleteOne(
+                {_id: new ObjectId(orderId)}
+            )
+
+            if(result.deletedCount === 0){
+                return res.json(404).json({
+                    error: "Order Not Found"
+                });
+            }
+
+            res.status(200).json({
+                message: `Order ID ${orderId} Deleted`
             });
 
         } catch (err) {
