@@ -72,7 +72,7 @@ async function main() {
 
     app.post("/orders", async (req, res) => {
         try {
-            console.log("req.body >>> ", req.body);
+            // console.log("req.body >>> ", req.body);
             const { 
                 name, item, brand, year, receivedDate, breakdown, services 
             } = req.body;
@@ -114,7 +114,7 @@ async function main() {
                 receivedDate,
                 breakdown,
                 services: serviceDoc.map(service => {
-                    console.log("service >>> ",service)
+                    // console.log("service >>> ",service)
                     return ({
                         _id: service._id,
                         name: service.name
@@ -125,8 +125,8 @@ async function main() {
 
             const result = await db.collection("orders").insertOne(newOrder);
 
-            console.log("result >>> ", result);
-            console.log("new Order >>> ", newOrder);
+            // console.log("result >>> ", result);
+            // console.log("new Order >>> ", newOrder);
             res.status(201).json({
                 message: "New Order Submitted",
                 orderId: result.insertedId
@@ -141,7 +141,81 @@ async function main() {
     })
 
     app.put("/orders/:id", async (req,res) => {
+        try {
+            const orderId = req.params.id;
+            
+            const { 
+                name, item, brand, year, receivedDate, breakdown, services 
+            } = req.body;
 
+            if(!name || !item || !brand || !year || 
+                !receivedDate || !breakdown || !services){
+                    return res.status(400).json({
+                        error: "Missing Required Fields"
+                    });
+            }
+
+            const brandDoc = await db.collection("bicycle-brands").findOne({
+                name: brand
+            });
+
+            if(!brandDoc){
+                return res.status(400).json({
+                    error: "Invalid Brand"
+                });
+            }
+
+            const serviceDoc = await db.collection("services").find({
+                name:{ $in:services }
+            }).toArray();
+
+            if(serviceDoc.length !== services.length){
+                return res.status(400).json({
+                    error: "One Or More Invalid Tags"
+                });
+            }
+            // console.log(brandDoc);
+            const updateOrder = {
+                name,
+                brand: {
+                    _id: brandDoc._id,
+                    name: brandDoc.name
+                },
+                year,
+                receivedDate,
+                breakdown,
+                services: serviceDoc.map(service => {
+                    // console.log("[PUT] service >>> ",service)
+                    return ({
+                        _id: service._id,
+                        name: service.name
+                    })
+                }
+                    )
+            }
+
+            const result = await db.collection("orders").updateOne(
+                {_id: new ObjectId(orderId)},
+                {$set: updateOrder}
+            )
+
+            if(result.matchedCount === 0){
+                return res.status(404).json({
+                    error: "Order Not Found"
+                });
+            }
+
+            console.log("EDTEID >>> ", result);
+            res.status(201).json({
+                message: `Order Id ${orderId} Edited`
+            });
+
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({
+                error: "Internal Server Error"
+            });
+        }
     })
 }
 
