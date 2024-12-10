@@ -194,7 +194,7 @@ async function main() {
 
             if (serviceDoc.length !== services.length) {
                 return res.status(400).json({
-                    error: "One Or More Invalid Tags"
+                    error: "One Or More Invalid Services"
                 });
             }
             console.log(brandDoc);
@@ -305,7 +305,7 @@ async function main() {
             }
 
             const brandDoc = await db.collection("bicycle-brands").findOne({
-                name: brand
+                name: brand.name
             });
 
             if (!brandDoc) {
@@ -314,13 +314,16 @@ async function main() {
                 });
             }
 
+            console.log(services.map((service)=>service.name));
             const serviceDoc = await db.collection("services").find({
-                name: { $in: services }
+                name: { $in: services.map((service)=>service.name) }
             }).toArray();
+
+            console.log(serviceDoc);
 
             if (serviceDoc.length !== services.length) {
                 return res.status(400).json({
-                    error: "One Or More Invalid Tags"
+                    error: "One Or More Invalid Services"
                 });
             }
             // console.log(brandDoc);
