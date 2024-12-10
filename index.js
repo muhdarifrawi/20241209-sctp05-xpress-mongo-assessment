@@ -20,15 +20,21 @@ async function main() {
 
     let db = await connect(mongouri, dbname);
 
-    app.get("/", function (req, res) {
+    /**
+     * @async
+     * @public
+     * @description main path to check API status
+     */
+    app.get("/", async function (req, res) {
         res.json({
             "message": "Server is running"
         })
     })
 
     /**
+     * 
      * @public
-     * @description lists all orders
+     * @description lists all orders without query
      */
     // app.get("/orders", async (req, res) => {
     //     try {
@@ -45,6 +51,7 @@ async function main() {
     // })
 
     /**
+     * @async
      * @public
      * @description list all orders with option to query
      */
@@ -89,6 +96,7 @@ async function main() {
     })
 
     /**
+     * @async
      * @public
      * @description go to order via id
      * @param {string} :id - Mongo Object ID
@@ -123,6 +131,17 @@ async function main() {
         }
     })
 
+    /**
+     * @async
+     * @private
+     * @description to submit new order
+     * @param {string} name - name of client
+     * @param {string} brand - brand of bicycle
+     * @param {string} year - year client bought the bicycle
+     * @param {string} receivedDate - format dd-mm-yyyy, date bicycle received
+     * @param {string} breakdown - breakdown of bicycle parts and its condition
+     * @param {string} services - list of services client requests for
+     */
     app.post("/orders", async (req, res) => {
         try {
             // console.log("req.body >>> ", req.body);
@@ -193,6 +212,61 @@ async function main() {
         }
     })
 
+    /**
+     * @async
+     * @private
+     * @description adds comment to order via id
+     * @param {string} :id - Mongo Object ID
+     * @param {string} user - name of user
+     * @param {string} comment - comment by user
+     */
+    app.post("/orders/:id/comments", async (req,res) => {
+        try {
+            const orderId = req.params.id;
+            const { user, comment } = req.body;
+
+            if(!user || !comment){
+                return res.status(400).json({
+                    error: "Missing Required Fields"
+                });
+            }
+
+            const newComment = {
+                comment_id: new ObjectId(),
+                user,
+                comment,
+                date: new Date()
+            }
+
+            const result = await db.collection("orders").updateOne(
+                {_id:new ObjectId(orderId)},
+                { $push: {comment: newComment}}
+            );
+
+            res.status(201).json({
+                message: "Comment Added Successfully",
+                commentId: newComment.comment_id
+            });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({
+                error: "Internal Server Error"
+            });
+        }
+    })
+
+    /**
+     * @async
+     * @private
+     * @description updates order via id
+     * @param {string} :id - Mongo Object ID
+     * @param {string} name - name of client
+     * @param {string} brand - brand of bicycle
+     * @param {string} year - year client bought the bicycle
+     * @param {string} receivedDate - format dd-mm-yyyy, date bicycle received
+     * @param {string} breakdown - breakdown of bicycle parts and its condition
+     * @param {string} services - list of services client requests for
+     */
     app.put("/orders/:id", async (req,res) => {
         try {
             const orderId = req.params.id;
@@ -271,6 +345,11 @@ async function main() {
         }
     })
 
+    /**
+     * @async
+     * @private
+     * @description deletes an order via id
+     */
     app.delete("/orders/:id", async (req,res) => {
         try {
             const orderId = req.params.id;
