@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const { MongoClient } = require("mongodb");
 const { ObjectId } = require('mongodb');
 require("dotenv").config();
@@ -9,6 +11,26 @@ const dbname = "sctp-05";
 let app = express();
 app.use(express.json());
 app.use(cors());
+
+const generateAccessToken = (id, email) => {
+    return jwt.sign({
+        'user_id': id,
+        'email': email
+    }, process.env.TOKEN_SECRET, {
+        expiresIn: "1h"
+    });
+}
+
+const verifyToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.sendStatus(403);
+    jwt.verify(token, process.env.TOKEN_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
+};
 
 async function connect(uri, dbname) {
     let client = await MongoClient.connect(uri);
@@ -57,29 +79,29 @@ async function main() {
      */
     app.get("/orders", async (req, res) => {
         try {
-            const { 
-                name, brand, year, receivedDate, services 
+            const {
+                name, brand, year, receivedDate, services
             } = req.query;
 
             let query = {};
 
-            if(name){
+            if (name) {
                 query["name"] = name;
             }
-            
-            if(brand){
+
+            if (brand) {
                 query["brand.name"] = brand;
             }
 
-            if(year){
+            if (year) {
                 query["year"] = parseInt(year);
             }
 
-            if(receivedDate){
+            if (receivedDate) {
                 query["receivedDate"] = receivedDate;
             }
 
-            if(services){
+            if (services) {
                 query["services.name"] = services;
             }
 
@@ -142,35 +164,35 @@ async function main() {
      * @param {string} breakdown - breakdown of bicycle parts and its condition
      * @param {string} services - list of services client requests for
      */
-    app.post("/orders", async (req, res) => {
+    app.post("/orders", verifyToken, async (req, res) => {
         try {
             // console.log("req.body >>> ", req.body);
-            const { 
-                name,  brand, year, receivedDate, breakdown, services 
+            const {
+                name, brand, year, receivedDate, breakdown, services
             } = req.body;
 
-            if(!name || !brand || !year || 
-                !receivedDate || !breakdown || !services){
-                    return res.status(400).json({
-                        error: "Missing Required Fields"
-                    });
+            if (!name || !brand || !year ||
+                !receivedDate || !breakdown || !services) {
+                return res.status(400).json({
+                    error: "Missing Required Fields"
+                });
             }
 
             const brandDoc = await db.collection("bicycle-brands").findOne({
                 name: brand
             });
 
-            if(!brandDoc){
+            if (!brandDoc) {
                 return res.status(400).json({
                     error: "Invalid Brand"
                 });
             }
 
             const serviceDoc = await db.collection("services").find({
-                name:{ $in:services }
+                name: { $in: services }
             }).toArray();
 
-            if(serviceDoc.length !== services.length){
+            if (serviceDoc.length !== services.length) {
                 return res.status(400).json({
                     error: "One Or More Invalid Tags"
                 });
@@ -192,7 +214,7 @@ async function main() {
                         name: service.name
                     })
                 }
-                    )
+                )
             }
 
             const result = await db.collection("orders").insertOne(newOrder);
@@ -220,12 +242,12 @@ async function main() {
      * @param {string} user - name of user
      * @param {string} comment - comment by user
      */
-    app.post("/orders/:id/comments", async (req,res) => {
+    app.post("/orders/:id/comments", verifyToken, async (req, res) => {
         try {
             const orderId = req.params.id;
             const { user, comment } = req.body;
 
-            if(!user || !comment){
+            if (!user || !comment) {
                 return res.status(400).json({
                     error: "Missing Required Fields"
                 });
@@ -239,8 +261,8 @@ async function main() {
             }
 
             const result = await db.collection("orders").updateOne(
-                {_id:new ObjectId(orderId)},
-                { $push: {comment: newComment}}
+                { _id: new ObjectId(orderId) },
+                { $push: { comment: newComment } }
             );
 
             res.status(201).json({
@@ -267,36 +289,36 @@ async function main() {
      * @param {string} breakdown - breakdown of bicycle parts and its condition
      * @param {string} services - list of services client requests for
      */
-    app.put("/orders/:id", async (req,res) => {
+    app.put("/orders/:id", verifyToken, async (req, res) => {
         try {
             const orderId = req.params.id;
-            
-            const { 
-                name, brand, year, receivedDate, breakdown, services 
+
+            const {
+                name, brand, year, receivedDate, breakdown, services
             } = req.body;
 
-            if(!name || !brand || !year || 
-                !receivedDate || !breakdown || !services){
-                    return res.status(400).json({
-                        error: "Missing Required Fields"
-                    });
+            if (!name || !brand || !year ||
+                !receivedDate || !breakdown || !services) {
+                return res.status(400).json({
+                    error: "Missing Required Fields"
+                });
             }
 
             const brandDoc = await db.collection("bicycle-brands").findOne({
                 name: brand
             });
 
-            if(!brandDoc){
+            if (!brandDoc) {
                 return res.status(400).json({
                     error: "Invalid Brand"
                 });
             }
 
             const serviceDoc = await db.collection("services").find({
-                name:{ $in:services }
+                name: { $in: services }
             }).toArray();
 
-            if(serviceDoc.length !== services.length){
+            if (serviceDoc.length !== services.length) {
                 return res.status(400).json({
                     error: "One Or More Invalid Tags"
                 });
@@ -318,15 +340,15 @@ async function main() {
                         name: service.name
                     })
                 }
-                    )
+                )
             }
 
             const result = await db.collection("orders").updateOne(
-                {_id: new ObjectId(orderId)},
-                {$set: updateOrder}
+                { _id: new ObjectId(orderId) },
+                { $set: updateOrder }
             )
 
-            if(result.matchedCount === 0){
+            if (result.matchedCount === 0) {
                 return res.status(404).json({
                     error: "Order Not Found"
                 });
@@ -350,15 +372,15 @@ async function main() {
      * @private
      * @description deletes an order via id
      */
-    app.delete("/orders/:id", async (req,res) => {
+    app.delete("/orders/:id", verifyToken, async (req, res) => {
         try {
             const orderId = req.params.id;
 
             const result = await db.collection("orders").deleteOne(
-                {_id: new ObjectId(orderId)}
+                { _id: new ObjectId(orderId) }
             )
 
-            if(result.deletedCount === 0){
+            if (result.deletedCount === 0) {
                 return res.json(404).json({
                     error: "Order Not Found"
                 });
@@ -375,6 +397,45 @@ async function main() {
             });
         }
     })
+
+    /**
+     * @async
+     * @public
+     * @description create new user
+     */
+    app.post("/register", async function (req, res) {
+        const result = await db.collection("users").insertOne({
+            "username": req.body.username,
+            "fullName": req.body.fullName,
+            "password": await bcrypt.hash(req.body.password, 12)
+        })
+        res.json({
+            "message": "New User Created",
+            "result": result
+        })
+    })
+
+    /**
+     * @async
+     * @public
+     * @description login registered user
+     */
+    app.post('/login', async (req, res) => {
+        const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({ message: "Email and Password Required" });
+        }
+        const user = await db.collection("users").findOne({ username: username });
+        if (!user) {
+            return res.status(404).json({ message: "User Not Found" });
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: "Invalid Password" });
+        }
+        const accessToken = generateAccessToken(user._id, user.username);
+        res.json({ accessToken: accessToken });
+    });
 }
 
 main();
