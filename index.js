@@ -26,9 +26,57 @@ async function main() {
         })
     })
 
+    /**
+     * @public
+     * @description lists all orders
+     */
+    // app.get("/orders", async (req, res) => {
+    //     try {
+    //         const orders = await db.collection("orders").find().project().toArray();
+
+    //         res.json({ orders });
+    //     }
+    //     catch (err) {
+    //         console.error(err);
+    //         res.status(500).json({
+    //             error: "Internal Server Error"
+    //         });
+    //     }
+    // })
+
+    /**
+     * @public
+     * @description list all orders with option to query
+     */
     app.get("/orders", async (req, res) => {
         try {
-            const orders = await db.collection("orders").find().project().toArray();
+            const { 
+                name, brand, year, receivedDate, services 
+            } = req.query;
+
+            let query = {};
+
+            if(name){
+                query["name"] = name;
+            }
+            
+            if(brand){
+                query["brand.name"] = brand;
+            }
+
+            if(year){
+                query["year"] = parseInt(year);
+            }
+
+            if(receivedDate){
+                query["receivedDate"] = receivedDate;
+            }
+
+            if(services){
+                query["services.name"] = services;
+            }
+
+            const orders = await db.collection("orders").find(query).project().toArray();
 
             res.json({ orders });
         }
@@ -40,6 +88,11 @@ async function main() {
         }
     })
 
+    /**
+     * @public
+     * @description go to order via id
+     * @param {string} :id - Mongo Object ID
+     */
     app.get("/orders/:id", async (req, res) => {
         try {
             const id = req.params.id;
@@ -74,10 +127,10 @@ async function main() {
         try {
             // console.log("req.body >>> ", req.body);
             const { 
-                name, item, brand, year, receivedDate, breakdown, services 
+                name,  brand, year, receivedDate, breakdown, services 
             } = req.body;
 
-            if(!name || !item || !brand || !year || 
+            if(!name || !brand || !year || 
                 !receivedDate || !breakdown || !services){
                     return res.status(400).json({
                         error: "Missing Required Fields"
@@ -145,10 +198,10 @@ async function main() {
             const orderId = req.params.id;
             
             const { 
-                name, item, brand, year, receivedDate, breakdown, services 
+                name, brand, year, receivedDate, breakdown, services 
             } = req.body;
 
-            if(!name || !item || !brand || !year || 
+            if(!name || !brand || !year || 
                 !receivedDate || !breakdown || !services){
                     return res.status(400).json({
                         error: "Missing Required Fields"
